@@ -8,6 +8,7 @@
 #include <vector>
 #include <utility>
 #include <type_traits>
+#include <iterator>
 #include <stdexcept>
 #include <stddef.h>
 #include <stdint.h>
@@ -38,15 +39,16 @@ private:
     template <bool IsConst>
     class common_iterator {
     private:
-        using ConditionalArr = std::conditional_t<IsConst, const std::vector<T*>, std::vector<T*>>;
-        using ConditionalPtr = std::conditional_t<IsConst, const T*, T*>;
-        using ConditionalRef = std::conditional_t<IsConst, const T&, T&>;
+        using ConditionalArr  = std::conditional_t<IsConst, const std::vector<T*>, std::vector<T*>>;
+        using ConditionalPtr  = std::conditional_t<IsConst, const T*, T*>;
+        using ConditionalRef  = std::conditional_t<IsConst, const T&, T&>;
+        using ConditionalType = std::conditional_t<IsConst, const T, T>;
 
         std::pair<int, int> it_pos;
         ConditionalPtr      it_ptr;
         ConditionalArr&     arr_ref;
 
-        void pos_calc(std::pair<int, int>& pos, size_t offset) {
+        void pos_calc(std::pair<int, int>& pos, size_t offset) const {
             size_t begin = pos.first * bucket_size + pos.second;
             size_t val   = begin + offset;
             pos.first    = val / bucket_size;
@@ -54,6 +56,12 @@ private:
         }
 
     public:
+        using iterator_category      = std::random_access_iterator_tag;
+        using difference_type        = std::ptrdiff_t;
+        using value_type             = ConditionalType;
+        using pointer                = ConditionalPtr;
+        using reference              = ConditionalRef;
+
         common_iterator(const common_iterator<IsConst>& common_iterator) = default;
         common_iterator(ConditionalArr& arr, const std::pair<int, int>& pos) 
         : it_pos(pos), it_ptr(arr[pos.first] + pos.second), arr_ref(arr) {};
@@ -94,57 +102,57 @@ private:
             return old;
         }
 
-        common_iterator& operator+=(int n) {
+        common_iterator& operator+=(difference_type n) {
             pos_calc(it_pos, n);
             it_ptr = arr_ref[it_pos.first] + it_pos.second;
             return *this;
         }
 
-        common_iterator& operator-=(int n) {
+        common_iterator& operator-=(difference_type n) {
             pos_calc(it_pos, -n);
             it_ptr = arr_ref[it_pos.first] + it_pos.second;
             return *this;
         }
 
-        common_iterator operator+(int n) {
+        common_iterator operator+(difference_type n) const {
             common_iterator tmp = *this;
             pos_calc(tmp.it_pos, n);
             tmp.it_ptr = arr_ref[tmp.it_pos.first] + tmp.it_pos.second;
             return tmp;
         }
 
-        common_iterator operator-(int n) {
+        common_iterator operator-(difference_type n) const {
             common_iterator tmp = *this;
             pos_calc(tmp.it_pos, -n);
             tmp.it_ptr = arr_ref[tmp.it_pos.first] + tmp.it_pos.second;
             return tmp;
         }
 
-        bool operator<(const common_iterator<IsConst>& other) {
+        bool operator<(const common_iterator<IsConst>& other) const {
             return it_pos < other.it_pos;
         }
 
-        bool operator<=(const common_iterator<IsConst>& other) {
+        bool operator<=(const common_iterator<IsConst>& other) const {
             return it_pos <= other.it_pos;
         }
 
-        bool operator>=(const common_iterator<IsConst>& other) {
+        bool operator>=(const common_iterator<IsConst>& other) const {
             return it_pos >= other.it_pos;
         }
 
-        bool operator>(const common_iterator<IsConst>& other) {
+        bool operator>(const common_iterator<IsConst>& other) const {
             return it_pos > other.it_pos;
         }
 
-        bool operator==(const common_iterator<IsConst>& other) {
+        bool operator==(const common_iterator<IsConst>& other) const {
             return it_pos == other.it_pos;
         }
 
-        bool operator!=(const common_iterator<IsConst>& other) {
+        bool operator!=(const common_iterator<IsConst>& other) const {
             return it_pos != other.it_pos;
         }
 
-        size_t operator-(const common_iterator<IsConst>& other) {
+        difference_type operator-(const common_iterator<IsConst>& other) const {
             return (it_pos.first - other.it_pos.first) * bucket_size + (it_pos.second - other.it_pos.second);
         }
 
@@ -161,12 +169,6 @@ public:
     using const_iterator         = common_iterator<true>;
     using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-    // TODO: разобраться с iterator_traits
-    // using iterator_category      = std::random_access_iterator_tag;
-    // using difference_type        = size_t;
-    // using value_type             = T;
-    // using reference_type         = T&;
 
     Deque();
     Deque(const Deque<T>& other);
@@ -189,6 +191,10 @@ public:
     void push_front(const T& value = T());
     void pop_front();
 
+    void insert(iterator iter, const T& value);
+
+    void erase(iterator iter);
+
     iterator begin();
     iterator end();
     
@@ -208,8 +214,8 @@ public:
     const_reverse_iterator crend() const;
 
     #ifdef _DEBUG
-    void print_arr();
-    void print_deque();
+    void print_arr() const;
+    void print_deque() const;
     #endif /* _DEBUG */
 };
 
@@ -499,6 +505,24 @@ void Deque<T>::pop_front() {
 }
 
 template <typename T>
+void Deque<T>::insert(iterator iter, const T& value) {
+    push_back(*(end() - 1));
+    for (iterator it = iter + 1 ; it != this->end(); ++it) {
+        *it = *(it - 1);
+    }
+    *iter = value;
+}
+
+template <typename T>
+void Deque<T>::erase(iterator iter) {
+    iterator it(iter);
+    for ( ; it != this->end(); ++it) {
+        *it = *(it + 1);
+    }
+    pop_back();
+}
+
+template <typename T>
 typename Deque<T>::iterator Deque<T>::begin() {
     return iterator(arr, begin_pos);
 }
@@ -530,44 +554,38 @@ typename Deque<T>::const_iterator Deque<T>::cend() const {
 
 template <typename T>
 typename Deque<T>::reverse_iterator Deque<T>::rbegin() {
-    std::pair<int, int> tmp_pos = end_pos;
-    pos_back(tmp_pos);
-    return reverse_iterator(arr, tmp_pos);
+    return reverse_iterator(iterator(arr, end_pos));
 }
 
 template <typename T>
 typename Deque<T>::reverse_iterator Deque<T>::rend() {
-    return reverse_iterator(arr, begin_pos);
+    return reverse_iterator(iterator(arr, begin_pos));
 }
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::rbegin() const {
-    std::pair<int, int> tmp_pos = end_pos;
-    pos_back(tmp_pos);
-    return const_reverse_iterator(arr, tmp_pos);    
+    return const_reverse_iterator(const_iterator(arr, end_pos));    
 }
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::rend() const {
-    return const_reverse_iterator(arr, begin_pos);
+    return const_reverse_iterator(const_iterator(arr, begin_pos));
 }
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::crbegin() const {
-    std::pair<int, int> tmp_pos = end_pos;
-    pos_back(tmp_pos);
-    return const_reverse_iterator(arr, tmp_pos); 
+    return const_reverse_iterator(const_iterator(arr, end_pos)); 
 }
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::crend() const {
-    return const_reverse_iterator(arr, begin_pos);
+    return const_reverse_iterator(const_iterator(arr, begin_pos));
 }
 
 
 #ifdef _DEBUG
 template <typename T>
-void Deque<T>::print_arr() {
+void Deque<T>::print_arr() const {
     for (int i = 0; i < bucket_count; ++i) {
         for (int j = 0; j < bucket_size; ++j) {
             std::cout << arr[i][j] << " ";
@@ -578,7 +596,7 @@ void Deque<T>::print_arr() {
 }
 
 template <typename T>
-void Deque<T>::print_deque() {
+void Deque<T>::print_deque() const {
     size_t count = 0;
     for (int i = 0; i < bucket_count; ++i) {
         for (int j = 0; j < bucket_size; ++j) {
