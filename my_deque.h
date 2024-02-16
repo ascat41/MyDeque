@@ -26,7 +26,7 @@ private:
     std::pair<int, int> begin_pos;
     std::pair<int, int> end_pos;
 
-    std::pair<int, int> pos_calc(const std::pair<int, int>& pos, size_t offset);
+    std::pair<int, int> pos_calc(const std::pair<int, int>& pos, size_t offset) const;
     void pos_forward(std::pair<int, int>& pos);
     void pos_back(std::pair<int, int>& pos);
 
@@ -221,7 +221,7 @@ public:
 
 // Private functions ---------------------------------------------------------------------------/
 template <typename T>
-std::pair<int, int> Deque<T>::pos_calc(const std::pair<int, int>& pos, size_t offset) {
+std::pair<int, int> Deque<T>::pos_calc(const std::pair<int, int>& pos, size_t offset) const {
     size_t begin = pos.first * bucket_size + pos.second;
     size_t val = begin + offset;
     return std::make_pair<int, int>(val / bucket_size, val % bucket_size);
@@ -440,8 +440,7 @@ size_t Deque<T>::capacity() const {
 
 template <typename T>
 T& Deque<T>::operator[](size_t index) {
-    std::pair<int, int> pos = pos_calc(begin_pos, index);
-    return arr[pos.first][pos.second];
+    return const_cast<T&>(const_cast<const Deque<T>*>(this)->operator[](index));
 }
 
 template <typename T>
@@ -452,9 +451,7 @@ const T& Deque<T>::operator[](size_t index) const {
 
 template <typename T>
 T& Deque<T>::at(size_t index) {
-    std::pair<int, int> pos = pos_calc(begin_pos, index);
-    if (is_index_in_range(pos)) return arr[pos.first][pos.second];
-    else throw std::out_of_range("at(): out of range");
+    return const_cast<T&>(const_cast<const Deque<T>*>(this)->at(index));
 }
 
 template <typename T>
