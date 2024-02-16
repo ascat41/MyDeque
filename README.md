@@ -1,1 +1,1 @@
-Реализация контейнера Deque. Задание описано в task.md.
+Реализация контейнера Deque. Требования взяты из task.md + реализована поддержка move-семантики: move-конструктор, move-оператор присваивания, move-методы push_back, push_front, emplace, emplace_back, emplace_front.

@@ -171,11 +171,13 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     Deque();
-    Deque(const Deque<T>& other);
+    explicit Deque(const Deque<T>& other);
     Deque(int n, const T& value = T());
+    Deque(Deque<T>&& other) noexcept;
     ~Deque();
 
     Deque<T>& operator=(const Deque<T>& other);
+    Deque<T>& operator=(Deque<T>&& other) noexcept;
 
     T& operator[](size_t index);
     const T& operator[](size_t index) const;
@@ -187,11 +189,22 @@ public:
     size_t capacity() const;
 
     void push_back(const T& value = T());
-    void pop_back();
+    void push_back(T&& value);
+
     void push_front(const T& value = T());
+    void push_front(T&& value);
+
+    void pop_back();
     void pop_front();
 
     void insert(iterator iter, const T& value);
+
+    template <typename... Args>
+    iterator emplace(iterator iter, Args&&... args);
+    template <typename... Args>
+    void emplace_back(Args&&... args);
+    template <typename... Args>
+    void emplace_front(Args&&... args);
 
     void erase(iterator iter);
 
@@ -368,6 +381,15 @@ Deque<T>::Deque(int n, const T& value) : sz(n), begin_pos{0, bucket_size / 2} {
 }
 
 template <typename T>
+Deque<T>::Deque(Deque<T>&& other) noexcept : arr(std::move(other.arr)), bucket_count(other.bucket_count), 
+                                             sz(other.sz), cap(other.cap), 
+                                             begin_pos(other.begin_pos), end_pos(other.end_pos) {
+    other.bucket_count = 0;
+    other.sz           = 0;
+    other.cap          = 0;
+}
+
+template <typename T>
 Deque<T>::~Deque() {
     for (int i = 0; i < bucket_count; ++i) {
         for (int j = 0; j < bucket_size; ++j) {
@@ -429,6 +451,20 @@ Deque<T>& Deque<T>::operator=(const Deque<T>& other) {
 }
 
 template <typename T>
+Deque<T>& Deque<T>::operator=(Deque<T>&& other) noexcept {
+    arr          = std::move(other.arr);
+    bucket_count = other.bucket_count;
+    sz           = other.sz;
+    cap          = other.cap;
+    begin_pos    = other.begin_pos;
+    end_pos      = other.end_pos;
+
+    other.bucket_count = 0;
+    other.sz           = 0;
+    other.cap          = 0;
+}
+
+template <typename T>
 size_t Deque<T>::size() const {
     return sz;
 }
@@ -463,12 +499,12 @@ const T& Deque<T>::at(size_t index) const {
 
 template <typename T>
 void Deque<T>::push_back(const T& value){
-    if (((end_pos.first * bucket_size + end_pos.second) == cap) || sz == cap) {
-        expand_back();
-    }
-    ++sz;
-    new(arr[end_pos.first] + end_pos.second) T(value);
-    pos_forward(end_pos);
+    emplace_back(value);
+}
+
+template <typename T>
+void Deque<T>::push_back(T&& value) {
+    emplace_back(std::move(value));
 }
 
 template <typename T>
@@ -483,12 +519,12 @@ void Deque<T>::pop_back() {
 
 template <typename T>
 void Deque<T>::push_front(const T& value) {
-    if (((begin_pos.first == begin_pos.second) && (begin_pos.first == 0)) || sz == cap) {
-        expand_front();
-    }
-    ++sz;
-    pos_back(begin_pos);
-    new(arr[begin_pos.first] + begin_pos.second) T(value);
+    emplace_front(value);
+}
+
+template <typename T>
+void Deque<T>::push_front(T&& value) {
+    emplace_front(std::move(value));
 }
 
 template <typename T>
@@ -503,11 +539,40 @@ void Deque<T>::pop_front() {
 
 template <typename T>
 void Deque<T>::insert(iterator iter, const T& value) {
+    emplace(iter, value);
+}
+
+template <typename T>
+template <typename... Args>
+typename Deque<T>::iterator Deque<T>::emplace(iterator iter, Args&&... args) {
     push_back(*(end() - 1));
-    for (iterator it = iter + 1 ; it != this->end(); ++it) {
+    for (iterator it = end() - 1; it != iter; --it) {
         *it = *(it - 1);
     }
-    *iter = value;
+    new ( &(*iter) ) T(std::forward<Args>(args)...);
+    return iter;
+}
+
+template <typename T>
+template <typename... Args>
+void Deque<T>::emplace_back(Args&&... args) {
+    if ((end_pos.first * bucket_size + end_pos.second) == cap) {
+        expand_back();
+    }
+    ++sz;
+    new(arr[end_pos.first] + end_pos.second) T(std::forward<Args>(args)...);
+    pos_forward(end_pos);    
+}
+
+template <typename T>
+template <typename... Args>
+void Deque<T>::emplace_front(Args&&... args) {
+    if ((begin_pos.first == begin_pos.second) && (begin_pos.first == 0)) {
+        expand_front();
+    }
+    ++sz;
+    pos_back(begin_pos);
+    new(arr[begin_pos.first] + begin_pos.second) T(std::forward<Args>(args)...);    
 }
 
 template <typename T>

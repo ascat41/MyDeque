@@ -1,10 +1,16 @@
 #define _DEBUG
 
+#include <utility>
+
 #include "my_deque.h"
 
 struct C {
     int a;
     C(int a) : a(a) {};
+    C(const C&) = default;
+    C& operator=(const C&) = default;    
+    C(C&&) = delete;
+    C& operator=(C&&) = delete;
     friend std::ostream& operator<<(std::ostream& out, const C& obj) {
         out << obj.a;
         return out;
@@ -43,6 +49,10 @@ int main() {
 
     Deque<C> deq5(15, C(5));
     deq5.push_back(C(3));
+    deq5.print_deque();
+    deq5.insert(deq5.end() - 1, C(4));
+    deq5.print_deque();
+    
     // for (int i = 0; i < 6; ++i) {
     //     deq5.push_front(C(7));
     // }
@@ -50,7 +60,7 @@ int main() {
     // deq5.print_deque();
     // deq5.print_arr();
     // std::cout << "first elem = " << *deq5.begin() << ", last elem = " << *(deq5.end() - 1) << ", len = " << deq5.end() - deq5.begin() << std::endl; 
-    std::cout << "last elem = " << *(deq5.rend() - 1) << ", first elem = " << *deq5.rbegin() << ", len = " << deq5.rend() - deq5.rbegin() << std::endl; 
+    // std::cout << "last elem = " << *(deq5.rend() - 1) << ", first elem = " << *deq5.rbegin() << ", len = " << deq5.rend() - deq5.rbegin() << std::endl; 
     // for (auto it = deq5.rbegin(); it != deq5.rend(); ++it) {
     //     std::cout << *it << " ";
     // }
@@ -62,4 +72,9 @@ int main() {
     // deq5.erase(deq5.begin());
     // deq5.print_deque();
     // deq5.print_arr();    
+    
+    Deque<C> deq6(std::move(deq5));
+    deq5.print_deque();
+    deq6.print_deque();
+    
 }
