@@ -60,9 +60,8 @@ private:
         using difference_type        = std::ptrdiff_t;
         using value_type             = ConditionalType;
         using pointer                = ConditionalPtr;
-        using reference              = ConditionalRef;
+        using reference              = ConditionalRef;    
 
-        common_iterator(const common_iterator<IsConst>& common_iterator) = default;
         common_iterator(ConditionalArr& arr, const std::pair<int, int>& pos) 
         : it_pos(pos), it_ptr(arr[pos.first] + pos.second), arr_ref(arr) {};
 
@@ -312,7 +311,13 @@ Deque<T>::Deque() : arr(1), bucket_count(1), sz(0), cap(bucket_size), begin_pos{
 }
 
 template <typename T>
-Deque<T>::Deque(const Deque<T>& other) : arr(other.bucket_count) {
+Deque<T>::Deque(const Deque<T>& other) {
+    if (this == &other) {
+        return;
+    }
+
+    arr.resize(other.bucket_count);
+    
     size_t i = 0;
     size_t j;
     try {
@@ -404,6 +409,10 @@ Deque<T>::~Deque() {
 
 template <typename T>
 Deque<T>& Deque<T>::operator=(const Deque<T>& other) {
+    if (this == &other) {
+        return *this;
+    }
+
     std::vector<T*> new_arr(other.bucket_count);
 
     size_t i = 0;
@@ -448,6 +457,8 @@ Deque<T>& Deque<T>::operator=(const Deque<T>& other) {
     end_pos      = other.end_pos;
     sz           = other.sz;
     cap          = other.cap;
+
+    return *this;
 }
 
 template <typename T>
@@ -547,7 +558,7 @@ template <typename... Args>
 typename Deque<T>::iterator Deque<T>::emplace(iterator iter, Args&&... args) {
     push_back(*(end() - 1));
     for (iterator it = end() - 1; it != iter; --it) {
-        *it = *(it - 1);
+        *it = std::move(*(it - 1));
     }
     new ( &(*iter) ) T(std::forward<Args>(args)...);
     return iter;
